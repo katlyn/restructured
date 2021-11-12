@@ -1,0 +1,72 @@
+@import url('https://fonts.googleapis.com/css2?family=Lexend&display=swap');
+@import url("https://cdn.jsdelivr.net/gh/jgthms/minireset.css@master/minireset.min.css");
+
+:root {
+  --peach: #efc4df;
+  --strawberry: #e5a0a0;
+  --cantaloupe: #f9b28c;
+  --banana: #f0cf9f;
+  --watermelon: #b0d2b0;
+  --mint: #95fecc;
+  --water: #80bbdb;
+  --ube: #a99dbd;
+  --tapioca: #c1c1c1;
+
+  --dark: #111;
+  --dark-secondary: #222;
+  --text: #333;
+  --light: #EEE;
+  --light-secondary: #DDD;
+
+  --accent: var(--watermelon);
+
+  color: var(--text);
+  background-color: var(--light);
+  font-family: 'Lexend', sans-serif;
+}
+
+h1 {
+  font-size: 2em;
+  margin: 1rem;
+}
+h2 {
+  font-size: 1.75em;
+  margin: 1rem;
+}
+h3 {
+  font-size: 1.5em;
+  margin: 1rem;
+}
+
+h1+h2,
+h1+h3,
+h1+h4,
+h1+h5 {
+  margin-top: -0.5rem;
+}
+
+a {
+  color: var(--dark);
+  text-decoration: underline var(--ube) 2px;
+  transition: text-decoration-color ease-in 0.2s;
+
+  &:hover {
+    text-decoration-color: var(--water);
+  }
+}
+
+button {
+  font: inherit;
+  border-radius: 0;
+  border: 1px solid var(--text);
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--light-secondary)
+  }
+
+  &:active, &.active {
+    background-color: var(--text);
+    color: var(--light);
+  }
+}
