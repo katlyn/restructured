@@ -8,12 +8,12 @@
         [`tool-${tool}`]: tool !== null,
         grabbing: currentDrag !== null
       }"
-      @mousemove="elementMouseMove($event)"
-      @touchmove="elementMouseMove($event)"
-      @mouseup.left="elementMouseUp()"
-      @touchend.prevent="elementTouchEnd()"
-      @mouseleave="elementMouseUp()"
-      @touchcancel.prevent="elementTouchEnd()"
+      @mousemove="elementMouseMove"
+      @touchmove="elementTouchMove"
+      @mouseup.left="elementMouseUp"
+      @mouseleave="elementMouseUp"
+      @touchend="elementTouchEnd"
+      @touchcancel="elementTouchEnd"
     >
       <Element
         v-for="atom in structure.atoms"
@@ -25,7 +25,7 @@
         :valenceElectrons="atom.valenceElectrons"
         @click.left="elementClick(atom)"
         @mousedown.left="elementMouseDown($event, atom)"
-        @touchstart.prevent="elementTouchStart($event, atom)"
+        @touchstart="elementTouchStart($event, atom)"
       />
 
       <Bond
@@ -135,7 +135,7 @@ export default defineComponent({
       tool: null as Tool,
       currentDrag: null as number|null,
       // Used for touch devices when dragging atoms
-      currentTouch: null as number|null
+      currentTouch: null as Touch|null
     }
   },
   methods: {
@@ -164,15 +164,11 @@ export default defineComponent({
       if (this.currentDrag === null) {
         return
       }
-      console.group('Timer')
-      console.log(Date.now())
       const struct = this.structure
       const index = struct.atoms.findIndex(a => a.id === this.currentDrag)
       struct.atoms[index].x += ev.movementX
       struct.atoms[index].y += ev.movementY
       this.$emit('updates:structure', struct)
-      console.log(Date.now())
-      console.groupEnd()
     },
     elementMouseUp () {
       this.currentDrag = null
@@ -181,8 +177,44 @@ export default defineComponent({
       if (this.tool !== 'move' || this.currentTouch !== null) {
         return
       }
+      ev.preventDefault()
       this.currentDrag = atom.id
-      this.currentTouch = ev.changedTouches[0].identifier
+      this.currentTouch = ev.changedTouches[0]
+    },
+    elementTouchMove (ev: TouchEvent) {
+      if (this.currentDrag === null || this.currentTouch === null) {
+        return
+      }
+      ev.preventDefault()
+      const touch = Array.from(ev.changedTouches).find(t => t.identifier === this.currentTouch?.identifier)
+      if (touch === undefined) {
+        return
+      }
+
+      const deltaX = touch.clientX - this.currentTouch.clientX
+      const deltaY = touch.clientY - this.currentTouch.clientY
+
+      this.currentTouch = touch
+
+      const struct = this.structure
+      const index = struct.atoms.findIndex(a => a.id === this.currentDrag)
+
+      struct.atoms[index].x += deltaX
+      struct.atoms[index].y += deltaY
+
+      this.$emit('updates:structure', struct)
+    },
+    elementTouchEnd (ev: TouchEvent) {
+      if (this.currentDrag === null || this.currentTouch === null) {
+        return
+      }
+      ev.preventDefault()
+      const touch = Array.from(ev.changedTouches).find(t => t.identifier === this.currentTouch?.identifier)
+      if (touch === undefined) {
+        return
+      }
+      this.currentDrag = null
+      this.currentTouch = null
     },
     selectTool (tool: Tool) {
       if (this.tool === tool) {
@@ -220,8 +252,8 @@ export default defineComponent({
 }
 
 .controls {
-  display: grid;
-  grid-auto-flow: column;
+  display: flex;
+  justify-content: center;
   gap: 1rem;
 
   .group {
@@ -238,12 +270,11 @@ export default defineComponent({
 
 @media screen and (max-width: 800px){
   .controls {
-    grid-auto-flow: row;
+    flex-direction: column;
   }
 
   .group > .controls {
-    grid-auto-flow: column;
-    grid-auto-columns: 1fr;
+    flex-direction: row;
   }
 }
 </style>
