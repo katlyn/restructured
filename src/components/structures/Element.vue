@@ -26,7 +26,7 @@
       {{ symbol }}
     </text>
 
-    <g class="electron-pairs">
+    <g class="electron-pairs" :transform="`rotate(${electronAngle * (180 / Math.PI) + 22.5 * (valenceElectrons - 2) }, ${size / 2}, ${size / 2})`">
       <circle cx="85%" cy="63.3333333%" r="5%" :class="{ filled: valenceElectrons >= 1 }" />
       <circle cx="85%" cy="36.6666667%" r="5%" :class="{ filled: valenceElectrons >= 2 }" />
 
@@ -56,6 +56,10 @@ export default defineComponent({
       required: true
     },
     valenceElectrons: {
+      type: Number,
+      required: true
+    },
+    electronAngle: {
       type: Number,
       required: true
     },

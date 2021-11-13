@@ -1,5 +1,5 @@
 export interface LayoutAtom {
-  id: number
+  id: string
   symbol: string
   x: number
   y: number
@@ -7,10 +7,10 @@ export interface LayoutAtom {
 }
 
 export interface LayoutBond {
-  id: number,
-  from: number
-  to: number
-  type: 'single'|'double'|'triple'
+  id: string,
+  from: string
+  to: string
+  type: 'single'|'double'|'triple'|'quadrouple'
 }
 
 export interface Layout {

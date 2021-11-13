@@ -23,6 +23,7 @@
         :size="size"
         :symbol="atom.symbol"
         :valenceElectrons="atom.valenceElectrons"
+        :electronAngle="electronAngles[atom.id]"
         @click.left="elementClick(atom)"
         @mousedown.left="elementMouseDown($event, atom)"
         @touchstart="elementTouchStart($event, atom)"
@@ -33,7 +34,9 @@
         :key="bond.id"
         :from="getAtom(bond.from)"
         :to="getAtom(bond.to)"
+        :type="bond.type"
         :size="size"
+        @click.left="bondClick(bond)"
       />
     </svg>
     <div class="controls" v-if="userEditable">
@@ -84,16 +87,10 @@
 
         <div class="controls">
           <button
-            :class="{ active: tool === 'bond-add-single' }"
-            @click="selectTool('bond-add-single')"
+            :class="{ active: tool === 'bond-add' }"
+            @click="selectTool('bond-add')"
           >
-            Add Single Bond
-          </button>
-          <button
-            :class="{ active: tool === 'bond-add-double' }"
-            @click="selectTool('bond-add-double')"
-          >
-            Add Double Bond
+            Add Bond
           </button>
           <button
             :class="{ active: tool === 'bond-remove' }"
@@ -111,11 +108,12 @@
 import { defineComponent, PropType } from 'vue'
 import Element from './Element.vue'
 import Bond from './Bond.vue'
-import { Layout, LayoutAtom } from '@/types/interfaces'
+import { Layout, LayoutAtom, LayoutBond } from '@/types/interfaces'
+import pt from 'periodic-table'
+import { v4 as uuid } from 'uuid'
 
-type Tool = null|
-  'move'|'atom-add'|'atom-remove'|
-  'bond-add-single'|'bond-add-double'|'bond-remove'|
+type Tool = 'move'|'atom-add'|'atom-remove'|
+  'bond-add'|'bond-remove'|
   'valence-add'|'valence-remove'
 
 export default defineComponent({
@@ -132,15 +130,79 @@ export default defineComponent({
   data () {
     return {
       size: 100,
-      tool: null as Tool,
-      currentDrag: null as number|null,
+      tool: 'move' as Tool,
+      currentDrag: null as string|null,
       // Used for touch devices when dragging atoms
-      currentTouch: null as Touch|null
+      currentTouch: null as Touch|null,
+      // Used when user starts to create a bond
+      bondStart: null as LayoutAtom|null
+    }
+  },
+  computed: {
+    electronAngles () {
+      const obj = {} as Record<string, number>
+      for (const atom of this.structure.atoms) {
+        let avg = null as null|number
+        const bonds = this.structure.bonds.filter(b => b.from === atom.id || b.to === atom.id)
+        for (const bond of bonds) {
+          let toAtom: LayoutAtom
+          if (bond.from === atom.id) {
+            toAtom = this.getAtom(bond.to) as LayoutAtom
+          } else {
+            toAtom = this.getAtom(bond.from) as LayoutAtom
+          }
+          if (avg === null) {
+            avg = Math.atan2(atom.y - toAtom.y, atom.x - toAtom.x)
+          } else {
+            avg = Math.atan2(
+              (Math.sin(avg) + Math.sin(Math.atan2(atom.y - toAtom.y, atom.x - toAtom.x))) / 2,
+              (Math.cos(avg) + Math.cos(Math.atan2(atom.y - toAtom.y, atom.x - toAtom.x))) / 2
+            )
+          }
+        }
+        if (avg === null) {
+          obj[atom.id] = 0
+        } else {
+          obj[atom.id] = avg
+        }
+      }
+      return obj
     }
   },
   methods: {
-    getAtom (atomId: number) {
+    addAtom (unknownSymbol = false) {
+      const symbol = prompt((unknownSymbol ? 'Unknown element.' : '') + "What's the symbol of the element to be added?")
+      if (symbol === null) {
+        return
+      }
+      const element = pt.symbols[symbol]
+      if (element === undefined) {
+        this.addAtom(true)
+      } else {
+        const struct = this.structure
+        struct.atoms.push({
+          id: uuid(),
+          symbol,
+          valenceElectrons: 0,
+          x: 0,
+          y: 0
+        })
+        this.$emit('updates:structure', struct)
+      }
+    },
+    getAtom (atomId: string) {
       return this.structure.atoms.find(a => a.id === atomId)
+    },
+    removeAtom (atom: LayoutAtom) {
+      const struct = this.structure
+      const index = struct.atoms.findIndex(a => a.id === atom.id)
+      struct.atoms.splice(index, 1)
+      const bonds = struct.bonds.filter(b => b.from === atom.id || b.to === atom.id)
+      for (const bond of bonds.map(b => b.id)) {
+        const index = struct.bonds.findIndex(b => b.id === bond)
+        struct.bonds.splice(index, 1)
+      }
+      this.$emit('updates:structure', struct)
     },
     elementClick (atom: LayoutAtom) {
       const struct = this.structure
@@ -148,11 +210,45 @@ export default defineComponent({
       switch (this.tool) {
         case 'valence-add':
           struct.atoms[index].valenceElectrons = struct.atoms[index].valenceElectrons >= 8 ? 8 : struct.atoms[index].valenceElectrons + 1
+          this.$emit('updates:structure', struct)
           break
         case 'valence-remove':
           struct.atoms[index].valenceElectrons = struct.atoms[index].valenceElectrons <= 0 ? 0 : struct.atoms[index].valenceElectrons - 1
+          this.$emit('updates:structure', struct)
+          break
+        case 'atom-remove':
+          this.removeAtom(atom)
+          break
+        case 'bond-add':
+          if (this.bondStart === null) {
+            this.bondStart = atom
+            alert('Select the second atom in the bond')
+          } else {
+            const to = atom.id
+            const from = this.bondStart.id
+            if (from === to) {
+              alert('Cannot bond to the same atom')
+              return
+            }
+            const existingBond = struct.bonds.find(b => (b.from === from && b.to === to) || (b.from === to && b.to === from))
+            if (existingBond !== undefined) {
+              alert('These atoms are already bonded')
+              return
+            }
+            const bondType = prompt('What type of bond is this?', 'single')?.toLowerCase() as LayoutBond['type']
+            if (['single', 'double', 'triple', 'quaruple'].includes(bondType)) {
+              struct.bonds.push({
+                id: uuid(),
+                from: this.bondStart.id,
+                to: atom.id,
+                type: bondType
+              })
+              this.bondStart = null
+            } else {
+              alert('Unknown bond type.')
+            }
+          }
       }
-      this.$emit('updates:structure', struct)
     },
     elementMouseDown (ev: MouseEvent, atom: LayoutAtom) {
       if (this.tool !== 'move' || this.currentDrag !== null) {
@@ -216,11 +312,21 @@ export default defineComponent({
       this.currentDrag = null
       this.currentTouch = null
     },
+    bondClick (bond: LayoutBond) {
+      const struct = this.structure
+      const index = struct.bonds.findIndex(b => b.id === bond.id)
+      struct.bonds.splice(index, 1)
+      this.$emit('updates:structure', struct)
+    },
     selectTool (tool: Tool) {
       if (this.tool === tool) {
-        this.tool = null
+        this.tool = 'move'
       } else {
         this.tool = tool
+        if (tool === 'bond-add') {
+          this.bondStart = null
+          alert('Select the first atom in the bond.')
+        }
       }
     }
   }
@@ -246,6 +352,12 @@ export default defineComponent({
 
   &.tool-valence-add, &.tool-valence-remove {
     .element {
+      cursor: pointer;
+    }
+  }
+
+  &.tool-bond-remove {
+    .bond {
       cursor: pointer;
     }
   }

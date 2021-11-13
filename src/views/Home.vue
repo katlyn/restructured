@@ -16,21 +16,21 @@ export default defineComponent({
       structure: {
         atoms: [
           {
-            id: 0,
+            id: '0',
             symbol: 'H',
             x: 0,
             y: 50,
             valenceElectrons: 0
           },
           {
-            id: 1,
+            id: '1',
             symbol: 'O',
             x: 100,
             y: 0,
             valenceElectrons: 4
           },
           {
-            id: 2,
+            id: '2',
             symbol: 'H',
             x: 200,
             y: 50,
@@ -39,15 +39,21 @@ export default defineComponent({
         ],
         bonds: [
           {
-            id: 0,
-            from: 0,
-            to: 1,
+            id: '0',
+            from: '0',
+            to: '1',
             type: 'single'
           },
           {
-            id: 1,
-            from: 1,
-            to: 2,
+            id: '1',
+            from: '1',
+            to: '2',
+            type: 'single'
+          },
+          {
+            id: '2',
+            from: '0',
+            to: '2',
             type: 'single'
           }
         ]
