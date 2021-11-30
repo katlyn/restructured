@@ -365,6 +365,9 @@ export default defineComponent({
       }
     },
     elementMouseDown (ev: MouseEvent, atom: LayoutAtom) {
+      if (!this.userEditable) {
+        return
+      }
       if (this.tool !== 'move' || this.currentDrag !== null) {
         return
       }
@@ -461,21 +464,23 @@ export default defineComponent({
   height: 100%;
   fill: currentColor;
 
-  &.tool-move {
-    .element {
-      cursor: move;
+  &.user-editable {
+    &.tool-move {
+      .element {
+        cursor: move;
+      }
     }
-  }
 
-  &.tool-valence-add, &.tool-valence-remove {
-    .element {
-      cursor: pointer;
+    &.tool-valence-add, &.tool-valence-remove {
+      .element {
+        cursor: pointer;
+      }
     }
-  }
 
-  &.tool-bond-remove {
-    .bond {
-      cursor: pointer;
+    &.tool-bond-remove {
+      .bond {
+        cursor: pointer;
+      }
     }
   }
 }
