@@ -305,6 +305,9 @@ export default defineComponent({
       this.notices.splice(index, 1)
     },
     elementClick (atom: LayoutAtom) {
+      if (!this.userEditable) {
+        return
+      }
       const struct = this.structure
       const index = struct.atoms.findIndex(a => a.id === atom.id)
       switch (this.tool) {
