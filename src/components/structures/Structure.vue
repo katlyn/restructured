@@ -222,10 +222,10 @@ export default defineComponent({
         if (['H', 'He'].includes(element.symbol)) {
           // only wants two in its shell
           if (contributedElectrons !== 2) {
-            return `${atom.symbol} doesn't have 2 valence electrons. (Has ${contributedElectrons})`
+            return `${element.name} doesn't have 2 valence electrons. (Has ${contributedElectrons})`
           }
         } else if (contributedElectrons !== 8) {
-          return `${atom.symbol} doesn't have 8 valence electrons. (Has ${contributedElectrons})`
+          return `${element.name} doesn't have 8 valence electrons. (Has ${contributedElectrons})`
         }
         console.log(atom.valenceElectrons)
         console.log(element.electronicConfiguration)
