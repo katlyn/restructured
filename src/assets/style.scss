@@ -102,9 +102,9 @@ ol {
 }
 
 .presentation {
-  min-height: calc(100vh - 2rem);
+  height: calc(100vh - 2rem);
   display: grid;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: 1fr;
 
   .slide-controls {
     margin-top: 1em;
