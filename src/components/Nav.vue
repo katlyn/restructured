@@ -2,9 +2,8 @@
   <header>
     <RouterLink to="/" class="main-title">Restructured</RouterLink>
     <nav>
-      <RouterLink to="/learn">Learn</RouterLink>
-      <RouterLink to="/build">Build</RouterLink>
-      <RouterLink to="/quiz">Quiz</RouterLink>
+      <RouterLink to="/">Home</RouterLink>
+      <RouterLink to="/presentation">Presentation</RouterLink>
       <RouterLink to="/about">About</RouterLink>
     </nav>
   </header>

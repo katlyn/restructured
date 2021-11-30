@@ -23,7 +23,7 @@ export default defineComponent({
   -moz-osx-font-smoothing: grayscale;
 
   display: grid;
-  grid-template-rows: 4rem 1fr auto;
+  grid-template-rows: 4rem 100vh;
   min-height: 100vh;
 }
 

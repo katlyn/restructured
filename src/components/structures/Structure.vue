@@ -39,6 +39,12 @@
         @click.left="bondClick(bond)"
       />
     </svg>
+    <div v-for="notice of notices" :key="notice.id" class="notice" :class="notice.type">
+      {{ notice.text }}
+    </div>
+    <div v-if="typeof isValid === 'string'" class="notice error">
+      Invalid structure! {{ isValid }}
+    </div>
     <div class="controls" v-if="userEditable">
       <div class="group">
         <span>General</span>
@@ -116,10 +122,13 @@ type Tool = 'move'|'atom-add'|'atom-remove'|
   'bond-add'|'bond-remove'|
   'valence-add'|'valence-remove'
 
+interface Notice { id: string, type: 'error'|'info', text: string }
+
 export default defineComponent({
   components: { Bond, Element },
   name: 'Structure',
   props: {
+    shouldVerify: Boolean,
     structure: {
       type: Object as PropType<Layout>,
       required: true
@@ -135,7 +144,9 @@ export default defineComponent({
       // Used for touch devices when dragging atoms
       currentTouch: null as Touch|null,
       // Used when user starts to create a bond
-      bondStart: null as LayoutAtom|null
+      bondStart: null as LayoutAtom|null,
+      notices: [] as Notice[],
+      invalidReason: ''
     }
   },
   computed: {
@@ -167,10 +178,86 @@ export default defineComponent({
         }
       }
       return obj
+    },
+    isValid () {
+      if (!this.shouldVerify) {
+        return true
+      }
+      let totalAtoms = 0
+      let requiredAtoms = 0
+      for (const atom of this.structure.atoms) {
+        const element = pt.symbols[atom.symbol]
+        let valenceElectrons = 0
+        element.electronicConfiguration.split(' ').forEach(s => {
+          if (s.startsWith('[')) {
+            return
+          }
+          valenceElectrons += parseInt(s[s.length - 1])
+        })
+        requiredAtoms += valenceElectrons
+
+        let bondElectrons = 0
+        const bonds = this.structure.bonds.filter(b => b.from === atom.id || b.to === atom.id)
+
+        for (const bond of bonds) {
+          switch (bond.type) {
+            case 'single':
+              bondElectrons += 2
+              break
+            case 'double':
+              bondElectrons += 4
+              break
+            case 'triple':
+              bondElectrons += 6
+              break
+            case 'quadrouple':
+              bondElectrons += 8
+              break
+          }
+        }
+
+        const contributedElectrons = atom.valenceElectrons + bondElectrons
+
+        console.log(element.symbol)
+        if (['H', 'He'].includes(element.symbol)) {
+          // only wants two in its shell
+          if (contributedElectrons !== 2) {
+            return `${atom.symbol} doesn't have 2 valence electrons. (Has ${contributedElectrons})`
+          }
+        } else if (contributedElectrons !== 8) {
+          return `${atom.symbol} doesn't have 8 valence electrons. (Has ${contributedElectrons})`
+        }
+        console.log(atom.valenceElectrons)
+        console.log(element.electronicConfiguration)
+        totalAtoms += atom.valenceElectrons
+      }
+
+      for (const bond of this.structure.bonds) {
+        switch (bond.type) {
+          case 'single':
+            totalAtoms += 2
+            break
+          case 'double':
+            totalAtoms += 4
+            break
+          case 'triple':
+            totalAtoms += 6
+            break
+          case 'quadrouple':
+            totalAtoms += 8
+            break
+        }
+      }
+
+      if (requiredAtoms !== totalAtoms) {
+        return `Incorrect number of atoms. (Needs ${requiredAtoms}, has ${totalAtoms})`
+      }
+      return true
     }
   },
   methods: {
     addAtom (unknownSymbol = false) {
+      this.tool = 'move'
       const symbol = prompt((unknownSymbol ? 'Unknown element.' : '') + "What's the symbol of the element to be added?")
       if (symbol === null) {
         return
@@ -204,6 +291,19 @@ export default defineComponent({
       }
       this.$emit('updates:structure', struct)
     },
+    addNotice (notice: Notice) {
+      if (this.notices.find(n => n.id === notice.id)) {
+        return
+      }
+      this.notices.push(notice)
+    },
+    removeNotice (noticeId: string) {
+      const index = this.notices.findIndex(n => n.id === noticeId)
+      if (index === -1) {
+        return
+      }
+      this.notices.splice(index, 1)
+    },
     elementClick (atom: LayoutAtom) {
       const struct = this.structure
       const index = struct.atoms.findIndex(a => a.id === atom.id)
@@ -222,17 +322,25 @@ export default defineComponent({
         case 'bond-add':
           if (this.bondStart === null) {
             this.bondStart = atom
-            alert('Select the second atom in the bond')
+            this.removeNotice('add-first')
+            this.addNotice({ id: 'add-second', type: 'info', text: 'Select the second atom in the bond' })
           } else {
+            this.removeNotice('add-second')
             const to = atom.id
             const from = this.bondStart.id
             if (from === to) {
-              alert('Cannot bond to the same atom')
+              this.bondStart = null
+              const id = uuid()
+              this.addNotice({ id, type: 'error', text: 'Cannot bond to the same atom' })
+              setTimeout(() => this.removeNotice(id), 2500)
               return
             }
             const existingBond = struct.bonds.find(b => (b.from === from && b.to === to) || (b.from === to && b.to === from))
             if (existingBond !== undefined) {
-              alert('These atoms are already bonded')
+              this.bondStart = null
+              const id = uuid()
+              this.addNotice({ id, type: 'error', text: 'These atoms are already bonded' })
+              setTimeout(() => this.removeNotice(id), 2500)
               return
             }
             const bondType = prompt('What type of bond is this?', 'single')?.toLowerCase() as LayoutBond['type']
@@ -244,8 +352,11 @@ export default defineComponent({
                 type: bondType
               })
               this.bondStart = null
+              this.addNotice({ id: 'add-first', type: 'info', text: 'Select the first atom in the bond.' })
             } else {
-              alert('Unknown bond type.')
+              const id = uuid()
+              this.addNotice({ id, type: 'error', text: 'Unknown bond type.' })
+              setTimeout(() => this.removeNotice(id), 2500)
             }
           }
       }
@@ -319,13 +430,16 @@ export default defineComponent({
       this.$emit('updates:structure', struct)
     },
     selectTool (tool: Tool) {
+      this.bondStart = null
+      this.removeNotice('add-first')
+      this.removeNotice('add-second')
       if (this.tool === tool) {
         this.tool = 'move'
       } else {
         this.tool = tool
         if (tool === 'bond-add') {
           this.bondStart = null
-          alert('Select the first atom in the bond.')
+          this.addNotice({ id: 'add-first', type: 'info', text: 'Select the first atom in the bond.' })
         }
       }
     }
@@ -336,7 +450,7 @@ export default defineComponent({
 <style lang="scss">
 .structure-wrapper {
   display: grid;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: 1fr auto auto;
 }
 
 .structure {
@@ -377,6 +491,18 @@ export default defineComponent({
       border-bottom: 1px var(--text) solid;
       text-align: center;
     }
+  }
+}
+
+.notice {
+  margin-bottom: 1em;
+  padding: 0.5em;
+
+  &.info {
+    background-color: var(--watermelon);
+  }
+  &.error {
+    background-color: var(--peach);
   }
 }
 
