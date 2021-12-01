@@ -11,6 +11,19 @@ export default defineComponent({
   name: 'Home',
   components: {
     Nav
+  },
+  watch: {
+    $route: {
+      handler () {
+        const body = document.body
+        if (this.$router.currentRoute.value.path.includes('presentation')) {
+          body.classList.add('hide-scrollbar')
+        } else {
+          body.classList.remove('hide-scrollbar')
+        }
+      },
+      immediate: true
+    }
   }
 })
 </script>
